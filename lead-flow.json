@@ -1,0 +1,427 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6ed9d950-3b09-4ee5-96cb-67b3ec2c9009",
+      "name": "Webhook",
+      "webhookId": "9c8e051f-3b71-436c-a749-a9f9641f442e"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Lead Details\n\nName:{{ $json.body.name }}\n\nCompany:{{ $json.body.company }}\n\nIndustry:{{ $json.body.industry }}\n\n\nBudget:{{ $json.body.budget }}\n\nProblem:{{ $json.body.problem }}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert B2B Sales Lead Qualification Assistant.\n\nAnalyze the lead based on:\n\n- Budget\n- Company\n- Industry\n- Business Problem\n\nAssign:\n\nHOT\nWARM\nCOLD\n\nProvide:\n\n- Lead score (0-100)\n- Qualification\n- Reason\n- Recommended action\n- Professional follow-up email\n\nReturn data that exactly matches the structured output schema.\n\nDo not return Markdown.\nDo not return explanations outside the schema."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9cf3b865-f51a-4d4e-8d3c-09be322ddf22",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "d8612926-5ca3-45c3-83b1-8736e62f45b3",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dVLbRJ1F3yfQddRR",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"lead_score\": 92,\n  \"qualification\": \"HOT\",\n  \"reason\": \"Large budget and urgent business requirement.\",\n  \"recommended_action\": \"Schedule a product demo within 24 hours.\",\n  \"followup_email\": \"Dear John,\\n\\nThank you for your interest...\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        384,
+        208
+      ],
+      "id": "6d59a803-1cb4-4172-97b7-0b332ad2061c",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.qualification }}",
+                    "rightValue": "HOT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ca5ef65e-a4de-4ef0-87bf-d18e53741ba9"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a54d1b22-4ef7-4492-8e40-f3477f2e0017",
+                    "leftValue": "={{ $json.output.qualification }}",
+                    "rightValue": "WARM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f95723b7-9493-4a71-9810-4d5ab371b348",
+                    "leftValue": "={{ $json.output.qualification }}",
+                    "rightValue": "COLD",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "4a16e7ca-334d-4259-b64d-bcbfa03fb636",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst score = Number($json.lead_score);\n\nlet qualification;\nlet priority;\nlet assigned_team;\n\nif (score >= 90) {\n  qualification = \"HOT\";\n  priority = \"High\";\n  assigned_team = \"Enterprise Sales\";\n} else if (score >= 70) {\n  qualification = \"WARM\";\n  priority = \"Medium\";\n  assigned_team = \"Sales Development\";\n} else {\n  qualification = \"COLD\";\n  priority = \"Low\";\n  assigned_team = \"Marketing\";\n}\n\nreturn [{\n  json: {\n    ...$json,\n    qualification,\n    priority,\n    assigned_team\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "43ed5647-a222-456e-a13b-8c9a08b87c2e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1quammr5WyNDeFbrRu3HZacprq7ixWHXAuXwJ4OIgabg",
+          "mode": "list",
+          "cachedResultName": "Customer Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1quammr5WyNDeFbrRu3HZacprq7ixWHXAuXwJ4OIgabg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1quammr5WyNDeFbrRu3HZacprq7ixWHXAuXwJ4OIgabg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Webhook').item.json.name }}",
+            "Company": "={{ $('Webhook').item.json.company }}",
+            "Industry": "={{ $('Webhook').item.json.industry }}",
+            "Score": "={{ $json.output.lead_score }}",
+            "Reason": "={{ $json.output.reason }}",
+            "Next Action": "={{ $json.output.recommended_action }}",
+            "Qualification": "={{ $json.output.qualification }}",
+            "Email": "={{ $json.output.followup_email }}",
+            "Date": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Qualification",
+              "displayName": "Qualification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next Action",
+              "displayName": "Next Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "61ebf5bf-161a-4e35-9a6d-58495be46f5b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "91qQec1kzsWnNl2M",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Code in JavaScript').item.json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1232,
+        0
+      ],
+      "id": "34479009-70b5-4aec-ae4a-b3ba743fe4b3",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6e619935-4ff3-4512-9713-4fa548150d0f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "563b859731b47f99bc48ab6b506493cca5cc56513efc36cdcd2117d766648220"
+  },
+  "nodeGroups": [],
+  "id": "q6fiRMXKRKfwkmKO",
+  "tags": []
+}
